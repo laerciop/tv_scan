@@ -1,0 +1,6 @@
+main:
+  server_ip: localhost
+  port: "27017"
+  login: False
+  user: root
+  passwd: mamae
