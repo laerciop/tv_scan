@@ -1,0 +1,44 @@
+name: register_update
+docker_env:
+  image: laerciop/mlflow_getgdrive:latest # CREATE IMAGE
+  volumes: ["/home/laertio/projects/dev/tv_scan/components/spotreg_update/data_in:/data_in",
+            "/home/laertio/projects/dev/tv_scan/conf:/conf"]
+
+entry_points:
+  main:
+    parameters:
+      project:
+        description: Wandb project
+        type: string
+        default: stell_campaign_report_test
+
+      file_name:
+        description: Name of the file that will be used as update input
+        type: string
+        default: input_sample.xlsx
+
+      mongo_config_path:
+        description: Path to the configuration/login parameters to mongodb
+        type: string
+        default: /conf/mongo-config.yaml
+
+      wandblogin:
+        description: Wandb api key
+        type: string
+        default: ea7d4ed782356f66850586612f115565b6a8a0c3
+
+    command: "python run.py {project} {file_name} {mongo_config_path} {wandblogin}"
+
+
+  test:
+    command: pytest # python -m pytest /mlflow/projects/code/test_run.py
+
+
+
+     parser.add_argument("project", type=str, help="Name of Wandb project")
+
+    parser.add_argument("file_name",
+                        type=str, help="Name of Spot Register file placed in ./data_in")
+
+
+

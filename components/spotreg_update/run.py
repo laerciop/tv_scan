@@ -5,13 +5,11 @@ exporting the result to a new artifact
 """
 import argparse
 import logging
-import os
 
-from omegaconf import OmegaConf
 import wandb
 import pandas as pd
 
-from helpers.mongo_handler import mongo_client
+from helpers.mongo_handler import mongo_client, schema_checker, last_spot_date_mongo, data_insertion
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)-15s %(message)s")
@@ -26,21 +24,40 @@ def spot_register_update(args):
     api_key = argparse_args.wandblogin
     wandb.login(key=api_key)
 
-    with wandb.init(job_type="test_upload", group="test_upload", project="test_project") as run:
-        try:
-            input_artifact = run.use_artifact(args.artifact_name+':latest', type='st_cleaned')
-            run.config.update({'child_artifact':input_artifact.json_encode()})
-        except (ValueError, wandb.errors.CommError):
-            logger.warning("Artif %s not found in laerciop...")
+    with wandb.init(job_type="Spot Register Update", group="Update", project=argparse_args.project) as run:
         run.config.update(argparse_args)
-        tv_scan = mongo_client(argparse_args.mongo_config_path)
+        input_file_path = "/data_in/"+args.file_name
+        try:
+            data_in = pd.read_excel(input_file_path)
+            if not schema_checker(data_in):
+                raise ImportError
+            artifact = wandb.Artifact(name="TV_Spot_Register",
+                                      type='Data In',
+                                      description='Marktest file')
+            artifact.add_file(input_file_path)
+            run.log_artifact(artifact)
+            logger.info("File %s loaded...", args.file_name)
+        except (ImportError, wandb.errors.CommError):
+            logger.warning("File input not matching expected schema...")
+        
+        # Loading mongo conf
+        tv_scan_db = mongo_client(argparse_args.mongo_config_path)
         logger.info("TV Scan DB config loaded...")
-        data_in = pd.read_excel("/data_in/"+args.file_name)
-        logger.info("File %s loaded...", args.file_name)
-        # CHECK file schema
         # CHECK and filter new registers
+        last_mongo_date = last_spot_date_mongo(tv_scan_db,
+                                               'test_collection',
+                                               'SolDate')
+        
+        insert_df = data_in.loc[data_in['SolDate'].gt(last_mongo_date)]
+        if len(insert_df) < 1:
+            logger.info("No new spots found, no new spots were inserted")
+            return None
+        
         # INSERT filtered registers
-        # LOG in W&B
+        data_insertion(data_in, tv_scan_db)
+        logger.info("Data inserted in Mongo...")
+
+        return None
 
 
 if __name__ == "__main__":

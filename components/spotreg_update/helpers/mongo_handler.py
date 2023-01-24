@@ -21,10 +21,11 @@ def schema_checker(dataframe):
     """
     Check if value inputs are in the same schema as it is suppose to be
     """
-    run_conf = OmegaConf.load('/app/fields_naming.yaml')
+    run_conf = OmegaConf.load('./fields_naming.yaml')
     format_dict = OmegaConf.to_object(run_conf)
     exp_columns = format_dict['exp_fields']
     if set(exp_columns) == set(dataframe.columns):
+        # Returns True if file matches schema
         return True        
     return False
 
@@ -44,6 +45,14 @@ def mongo_client(config_file_path):
         client = MongoClient(f'mongodb://{server_ip}:{port}')
 
     return client.TV_scan
+
+
+def last_spot_date_mongo(client, collection_name, date_field):
+    """Helper function to gather the date from the last Spot Register
+    present in MongoDB/TV_scan/Spots_Collection"""
+    doc = client[collection_name].find_one(sort=[(date_field, -1)])
+    return doc[date_field]
+
 
 
 
