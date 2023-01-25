@@ -1,8 +1,7 @@
-name: register_update
+name: get_data
 docker_env:
   image: laerciop/mlflow_getgdrive:latest # CREATE IMAGE
-  volumes: ["/home/laertio/projects/dev/tv_scan/components/spotreg_update/data_in:/data_in",
-            "/home/laertio/projects/dev/tv_scan/conf:/conf"]
+  volumes: ["/home/laertio/projects/dev/tv_scan/conf:/conf"]
 
 entry_points:
   main:
@@ -12,27 +11,29 @@ entry_points:
         type: string
         default: stell_campaign_report_test
 
-      file_name:
-        description: Name of the file that will be used as update input
+      collection_name:
+        description: Name of the collection where the registers are stored
         type: string
-        default: input_sample.xlsx
+        default: spot_register
 
       mongo_config_path:
         description: Path to the configuration/login parameters to mongodb
         type: string
         default: /conf/mongo-config.yaml
 
+      job_reference:
+        description: Id/reference of the processing instructions store in the Proc_Jobs collection
+        type: string
+
       wandblogin:
         description: Wandb api key
         type: string
         default: ea7d4ed782356f66850586612f115565b6a8a0c3
 
-    command: "python run.py {project} {file_name} {mongo_config_path} {wandblogin}"
+    command: "python run.py {project} {collection_name} {mongo_config_path} {job_reference} {wandblogin}"
 
 
   test:
     command: pytest # python -m pytest /mlflow/projects/code/test_run.py
-
-
 
 

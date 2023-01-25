@@ -61,7 +61,7 @@ def spot_register_update(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Tests database and upload it to NLP tank")
+    parser = argparse.ArgumentParser(description="Update spots register in mongodb")
 
     parser.add_argument("project", type=str, help="Name of Wandb project")
 

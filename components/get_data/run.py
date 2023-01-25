@@ -4,15 +4,11 @@ MLflow component to get Stellantis GA data and upload to a GCStorage bucket
 
 import argparse
 import logging
-import tempfile
 
 from omegaconf import OmegaConf
 import wandb
 
-from helpers.gdrive_helper import download_file
-from helpers.email_helper import retrieve_report_email
-from helpers.bq_helper import post_csv_to_bq
-
+from helpers.mongo_handler import core_processor_helper, mongo_client, get_processing_list
 
 # basic logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)-15s %(message)s")
@@ -25,44 +21,53 @@ def get_data(argparse_args):
     wandb.login(key=api_key)
     with wandb.init(job_type="get_data", project=argparse_args.project) as run:
         logger.info("Process Started.")
-        file_reg = {}
-        conf_yaml = OmegaConf.load('/conf/run_info.yaml')
-        run_conf = OmegaConf.to_object(conf_yaml)
-        run.config.update({'input_conf': run_conf})
-        logger.info("Config file loaded with %i item(s).", len(run_conf.items()))
-        # For each job in the run_info file
-        file_reg = {}
-        for item in run_conf.items():
-            run_name, run_param = item
-            # Go to LAST ONE email and retrieve IDs
-            fileid = retrieve_report_email(run_param['mail_folder'], 1)[0]
-            file_loc = download_file(fileid, run_param)
-            # Get each file by ID
-            # Send each one to GBQ
-            post_info = post_csv_to_bq(file_loc,
-                                       run_param['gcp_project'],
-                                       run_param['bq_dest_table'],
-                                       run_param['columns'])
-            file_reg[run_param['brand']] = post_info
+        run.config.update({'run_inputs':argparse_args})
+        tv_scan = mongo_client(argparse_args.mongo_config_path)
+        logger.info("MongoDB info loaded.")
+        # load mongo filter for processing from job referencee
+        logger.info("Getting processing job list...")
+        proc_job_coll = 'Proc_Jobs' # name of the collection containing the job list
+        query = get_processing_list(argparse_args.job_reference,
+                                    tv_scan,
+                                    proc_job_coll)
+        run.config.update({'processing_list':query})
+        # For each filtered register:
+        # # check if there's a downloaded file:
+        check_field = 'GCP_path'
+        # # # if not, go and download
+        # # # then register the GCS link to the "spot_file_loc" field:
+        logger.info("File gathering started.")
+        processed_list = core_processor_helper(tv_scan,
+                                               argparse_args.collection_name,
+                                               query,
+                                               check_field)
 
-        wandb.log({'files_downloaded':file_reg})
-
-        # Upload artifacts
+        run.config.update({'processed_registers':len(processed_list)})
         
-        logger.info("All Files loaded in BQ.")
-        return run.id
 
 
 if __name__ == "__main__":
     # Argparse is being used to imput dynamic values programmed in MLproject file.
     # customize the arguments as you want.
-    parser = argparse.ArgumentParser(description="Get FTP files and save locally")
-
+    parser = argparse.ArgumentParser(description="Get spots files to be processed.")
+    
     parser.add_argument("project", type=str, help="Name of Wandb project")
 
-    parser.add_argument(
-        "wandblogin", type=str, help="Wandb login key"
-    )
+    parser.add_argument("collection_name",
+                        type=str, help="Mongo db collection where registers are")
+
+    parser.add_argument("--mongo_config_path",
+                        type=str,
+                        help="the path of the mongo server config file")
+    
+    parser.add_argument("--job_reference",
+                        type=str,
+                        help="name of the job where processing information are stored")
+
+    parser.add_argument("--wandblogin",
+                        type=str,
+                        help="Wandb API key",
+                        required=True)
 
     args = parser.parse_args()
     # Here you can add all steps this pipe need to accomplish this task.

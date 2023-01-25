@@ -2,5 +2,7 @@
 """__init__.py"""
 
 from .helpers import file_hadlers
+from .helpers import mongo_handler
+
 from . import  test_run
 from . import run

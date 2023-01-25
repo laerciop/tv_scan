@@ -3,3 +3,5 @@
 
 from file_hadlers import audio_processor_helper
 from file_hadlers import spot_download_helper
+
+from mongo_handler import mongo_client
