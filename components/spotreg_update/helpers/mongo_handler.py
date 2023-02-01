@@ -9,13 +9,13 @@ from pymongo import MongoClient
 # import pandas as pd
 
 
-def data_insertion(dataframe, client):
+def data_insertion(dataframe, client, collection):
     """
     Check if value inputs are in the same schema as it is suppose to be
     """
     insert = dataframe.to_dict(orient='index') #records
     insert = list(insert.values())
-    client['spots_inventory'].insert_many(insert)
+    client[collection].insert_many(insert)
 
 def schema_checker(dataframe):
     """
@@ -35,7 +35,7 @@ def mongo_client(config_file_path):
     config = OmegaConf.load(config_file_path)
     server_ip = config.main.server_ip
     port = config.main.port
-    if config.login:
+    if config.main.login:
         user = config.main.user
         passwd = config.main.passwd
         client = MongoClient(f'mongodb://{server_ip}:{port}',
@@ -47,11 +47,16 @@ def mongo_client(config_file_path):
     return client.TV_scan
 
 
-def last_spot_date_mongo(client, collection_name, date_field):
+def new_register_check(client, collection_name, spotid_field, check_list):
     """Helper function to gather the date from the last Spot Register
     present in MongoDB/TV_scan/Spots_Collection"""
-    doc = client[collection_name].find_one(sort=[(date_field, -1)])
-    return doc[date_field]
+    cursor = client[collection_name].find()
+    id_list = []
+    for doc in cursor:
+        id_list.append(doc[spotid_field])
+    
+    checker = list(set(check_list) - set(id_list))
+    return checker
 
 
 

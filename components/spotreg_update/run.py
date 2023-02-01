@@ -9,7 +9,7 @@ import logging
 import wandb
 import pandas as pd
 
-from helpers.mongo_handler import mongo_client, schema_checker, last_spot_date_mongo, data_insertion
+from helpers.mongo_handler import mongo_client, schema_checker, new_register_check, data_insertion
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)-15s %(message)s")
@@ -27,9 +27,10 @@ def spot_register_update(args):
     with wandb.init(job_type="Spot Register Update", group="Update", project=argparse_args.project) as run:
         run.config.update(argparse_args)
         input_file_path = "/data_in/"+args.file_name
+        spots_inv_coll = argparse_args.spots_inventory
         try:
             data_in = pd.read_excel(input_file_path)
-            if not schema_checker(data_in):
+            if not schema_checker(data_in): # check if DF is the Mediamonitor one
                 raise ImportError
             artifact = wandb.Artifact(name="TV_Spot_Register",
                                       type='Data In',
@@ -39,25 +40,46 @@ def spot_register_update(args):
             logger.info("File %s loaded...", args.file_name)
         except (ImportError, wandb.errors.CommError):
             logger.warning("File input not matching expected schema...")
-        
+            return None
+        # Dataframe cleaning and prep
+        data_in = data_in.drop_duplicates(subset='SpotCode', keep='first')
+        keep_cols = ['SpotCode',
+                    'SpotDesc',
+                    'VehicleDesc',
+                    'BrandDesc',
+                    'SubBrandDesc',
+                    'SectorDesc',
+                    'CategoryDesc',
+                    'ClassDesc',
+                    'SubClassDesc',
+                    'AdvertiserDesc',
+                    'MediaFile',
+                    'MediaFileOldUrl']
+
+        data_in = data_in.loc[:,keep_cols]
+
         # Loading mongo conf
         tv_scan_db = mongo_client(argparse_args.mongo_config_path)
         logger.info("TV Scan DB config loaded...")
         # CHECK and filter new registers
-        last_mongo_date = last_spot_date_mongo(tv_scan_db,
-                                               'test_collection',
-                                               'SolDate')
-        
-        insert_df = data_in.loc[data_in['SolDate'].gt(last_mongo_date)]
-        if len(insert_df) < 1:
+        try:
+            checker = new_register_check(tv_scan_db,
+                                         spots_inv_coll,
+                                         'SpotCode',
+                                         list(data_in['SpotCode']))
+            if len(checker) > 0:
+                # INSERT filtered registers
+                insert_df = data_in.loc[data_in['SpotCode'].isin(checker)]
+                data_insertion(insert_df, tv_scan_db, spots_inv_coll)
+                logger.info("New %i registers inserted in Mongo...", len(checker))
+            
             logger.info("No new spots found, no new spots were inserted")
             return None
-        
-        # INSERT filtered registers
-        data_insertion(data_in, tv_scan_db)
-        logger.info("Data inserted in Mongo...")
-
-        return None
+            
+        except FileNotFoundError: # USED A BIZARRE EXEPTION TO CATCH THE ONE THAT I REALLY TO EXCEPT
+            data_insertion(data_in, tv_scan_db)
+            logger.info("All data inserted in Mongo...")
+            return None
 
 
 if __name__ == "__main__":
@@ -68,9 +90,13 @@ if __name__ == "__main__":
     parser.add_argument("file_name",
                         type=str, help="Name of Spot Register file placed in ./data_in")
 
-    parser.add_argument("--mongo_config_path",
+    parser.add_argument("mongo_config_path",
                         type=str,
                         help="the path of the mongo server config file")
+
+    parser.add_argument("spots_inventory",
+                        type=str,
+                        help="name of the collection of spots in MongoDB")
 
     parser.add_argument("--wandblogin",
                         type=str,

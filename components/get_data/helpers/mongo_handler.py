@@ -5,9 +5,8 @@ Module to organize helper functions to handle MongoDB data
 
 from omegaconf import OmegaConf
 from pymongo import MongoClient, UpdateOne
-from file_hadlers import FileHandler
+from .file_handlers import FileHandler
 
-# import pandas as pd
 
 
 def mongo_client(config_file_path):
@@ -15,7 +14,7 @@ def mongo_client(config_file_path):
     config = OmegaConf.load(config_file_path)
     server_ip = config.main.server_ip
     port = config.main.port
-    if config.login:
+    if config.main.login:
         user = config.main.user
         passwd = config.main.passwd
         client = MongoClient(f'mongodb://{server_ip}:{port}',
@@ -43,19 +42,31 @@ def field_checker(field_to_check, document):
         - True if field is empty"""
 
     if field_to_check in document:
-        return True
-    else:
         return False
+    else:
+        return True
+
 
 def get_processing_list(job_reference, client, collection):
     """Function to help getting spot processing list"""
     job = client[collection].find_one({"j_ref":job_reference})
+    query = {'_id':{'$in':job['doc_list']}}
+    return query
+
+
+def update_processing_status(new_status, job_reference, client, collection):
+    """Function to help changing job status"""
+    job = client[collection].find_one({"j_ref":job_reference})
+    client[collection].UpdateOne({'_id':job['_id']},{'$set':{'status':new_status}} )
     return job['doc_list']
 
 
-def core_processor_helper(client, collection, query, flag_field):
+def core_processor_helper(client, collection, query, flag_field, wb_run_obj):
     """Helper to run the core text processing task defined in the processing_pipe function"""
     cursor = client[collection].find(query)
+    reg_sample = cursor.next()
+    cursor.rewind()
+    wb_run_obj.config.update({'processing_sample':reg_sample})
     gcs_handler = FileHandler('publicispt-datastage')
     # List of all DB updates set to happen
     db_updates = []
@@ -65,8 +76,8 @@ def core_processor_helper(client, collection, query, flag_field):
             # Building parameters
             url = doc['MediaFileOldUrl']
             spot_code = str(doc['SpotCode'])
-            brand = doc['BrandDesc'].str.replace(r'\s', '_') # Replace Whitespaces
-            brand = doc['BrandDesc'].str.replace(r'\W', '_') # eliminate non-word
+            brand = doc['BrandDesc'].replace(r'\s', '_') # Replace Whitespaces
+            brand = doc['BrandDesc'].replace(r'\W', '_') # eliminate non-word
             file_format = doc['MediaFileOldUrl'][-4:]
             dest_name = spot_code+"_"+brand+file_format
             # Download the file if not downloaded yet

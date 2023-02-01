@@ -1,5 +1,5 @@
 main:
-  server_ip: localhost
+  server_ip: "172.17.0.2"
   port: "27017"
   login: False
   user: root
