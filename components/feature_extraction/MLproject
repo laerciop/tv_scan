@@ -1,0 +1,44 @@
+name: feature_extraction
+docker_env:
+  image: laerciop/mlflow_whisperfe:latest
+  volumes: ["/home/laertio/projects/dev/tv_scan/conf:/conf"]
+
+entry_points:
+  main:
+    parameters:
+      project:
+        description: Wandb project
+        type: string
+        default: tv_scan_test
+
+      collection_name:
+        description: Name of the collection where the registers are stored
+        type: string
+        default: spots_inventory
+
+      mongo_config_path:
+        description: Path to the configuration/login parameters to mongodb
+        type: string
+        default: /conf/mongo-config.yaml
+
+      job_reference:
+        description: Id/reference of the processing instructions stored in the Proc_Jobs collection
+        type: string
+      
+      model_type:
+        description: Whisper Model type parameter
+        type: string
+        default: tiny
+
+      wandblogin:
+        description: Wandb api key
+        type: string
+        default: ea7d4ed782356f66850586612f115565b6a8a0c3
+
+    command: "python run.py {project} {collection_name} {mongo_config_path} {job_reference} {model_type} --wandblogin {wandblogin}"
+
+
+  test:
+    command: pytest # python -m pytest /mlflow/projects/code/test_run.py
+
+

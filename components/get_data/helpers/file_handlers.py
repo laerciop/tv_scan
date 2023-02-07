@@ -23,7 +23,7 @@ class FileHandler():
                     file.write(data)
                 except Exception as e:
                     return str(e)
-            file_url = file.info()
+            file_url = file.info()['selfLink']
         return (dest_file, file_url)
 
 if __name__ == "__main__":

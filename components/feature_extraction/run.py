@@ -1,5 +1,5 @@
 """
-MLflow component to get spots data (files) to tv_scan
+MLflow component to extract features from spots
 """
 
 import argparse
@@ -15,8 +15,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)-15s %(message)s")
 logger = logging.getLogger()
 
 
-def get_data(argparse_args):
-    """Function to connect to mongo, download the video files, and save it in GCS."""
+def feature_extraction(argparse_args):
+    """Function to connect to mongo, process the video files (already downloaded)
+    and save it into DB."""
     api_key = argparse_args.wandblogin
     wandb.login(key=api_key)
     with wandb.init(job_type="get_data", project=argparse_args.project) as run:
@@ -34,13 +35,14 @@ def get_data(argparse_args):
         # For each filtered register:
         # # check if there's a downloaded file:
         check_field = 'GCP_path'
-        # # # if not, go and download
-        # # # then register the GCS link to the "spot_file_loc" field:
-        logger.info("File gathering started.")
+        # # # if not, won't try to process
+        logger.info("Feature extraction started.")
+
         processed_list = core_processor_helper(tv_scan,
                                                argparse_args.collection_name,
                                                query,
                                                check_field,
+                                               argparse_args.model_type,
                                                run)
         update_processing_status('Download Completed.',
                                  argparse_args.job_reference,
@@ -67,6 +69,10 @@ if __name__ == "__main__":
     parser.add_argument("job_reference",
                         type=str,
                         help="name of the job where processing information are stored")
+    
+    parser.add_argument("model_type",
+                        type=str,
+                        help="model type to be used in whisper")
 
     parser.add_argument("--wandblogin",
                         type=str,
@@ -75,4 +81,4 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     # Here you can add all steps this pipe need to accomplish this task.
-    get_data(args)
+    feature_extraction(args)
