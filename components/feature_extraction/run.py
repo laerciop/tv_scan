@@ -20,7 +20,7 @@ def feature_extraction(argparse_args):
     and save it into DB."""
     api_key = argparse_args.wandblogin
     wandb.login(key=api_key)
-    with wandb.init(job_type="get_data", project=argparse_args.project) as run:
+    with wandb.init(job_type="feature_extraction", project=argparse_args.project) as run:
         logger.info("Process Started.")
         run.config.update({'run_inputs':argparse_args})
         tv_scan = mongo_client(argparse_args.mongo_config_path)

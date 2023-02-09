@@ -21,13 +21,13 @@ def spot_register_update(args):
     send to MongoDB server only the registers that are new.
     (WRITE WHAT IS CONSIDERED "new")
     """
-    api_key = argparse_args.wandblogin
+    api_key = args.wandblogin
     wandb.login(key=api_key)
 
-    with wandb.init(job_type="Spot Register Update", group="Update", project=argparse_args.project) as run:
-        run.config.update(argparse_args)
+    with wandb.init(job_type="spot_reg_update", project=args.project) as run:
+        run.config.update(args)
         input_file_path = "/data_in/"+args.file_name
-        spots_inv_coll = argparse_args.spots_inventory
+        spots_inv_coll = args.spots_inventory
         try:
             data_in = pd.read_excel(input_file_path)
             if not schema_checker(data_in): # check if DF is the Mediamonitor one
@@ -59,7 +59,7 @@ def spot_register_update(args):
         data_in = data_in.loc[:,keep_cols]
 
         # Loading mongo conf
-        tv_scan_db = mongo_client(argparse_args.mongo_config_path)
+        tv_scan_db = mongo_client(args.mongo_config_path)
         logger.info("TV Scan DB config loaded...")
         # CHECK and filter new registers
         try:
