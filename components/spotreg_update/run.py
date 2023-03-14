@@ -72,9 +72,9 @@ def spot_register_update(args):
                 insert_df = data_in.loc[data_in['SpotCode'].isin(checker)]
                 data_insertion(insert_df, tv_scan_db, spots_inv_coll)
                 logger.info("New %i registers inserted in Mongo...", len(checker))
-            
-            logger.info("No new spots found, no new spots were inserted")
-            return None
+            else: 
+                logger.info("No new spots found, no new spots were inserted")
+                return None
             
         except FileNotFoundError: # USED A BIZARRE EXEPTION TO CATCH THE ONE THAT I REALLY TO EXCEPT
             data_insertion(data_in, tv_scan_db)

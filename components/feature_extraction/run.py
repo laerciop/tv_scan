@@ -44,7 +44,7 @@ def feature_extraction(argparse_args):
                                                check_field,
                                                argparse_args.model_type,
                                                run)
-        update_processing_status('Download Completed.',
+        update_processing_status('Processing Completed.',
                                  argparse_args.job_reference,
                                  tv_scan,
                                  proc_job_coll)
